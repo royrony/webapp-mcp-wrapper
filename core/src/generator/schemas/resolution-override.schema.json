@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://spec.local/001-webapp-mcp-wrapper/resolution-override.schema.json",
+  "title": "ResolutionOverride",
+  "description": "Contract for a correction an AI agent (or a human) supplies for a skipped/ambiguous DiscoveredFunctionality item (FR-020). An array of these is the input to the `apply-overrides` CLI command.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["identityKey", "suppliedBy", "proposedFix"],
+    "properties": {
+      "identityKey": {
+        "type": "string",
+        "description": "FK to the DiscoveredFunctionality item being corrected, from the ExtractionReport."
+      },
+      "suppliedBy": {
+        "type": "string",
+        "enum": ["agent", "human"]
+      },
+      "proposedFix": {
+        "type": "object",
+        "minProperties": 1,
+        "properties": {
+          "parameters": { "type": "array" },
+          "description": { "type": "string" },
+          "outputSchema": { "type": "object" }
+        },
+        "additionalProperties": false
+      },
+      "verification": {
+        "type": "object",
+        "description": "Populated by `apply-overrides` after it makes a real call — not supplied by the agent.",
+        "properties": {
+          "attempted": { "type": "boolean" },
+          "succeeded": { "type": "boolean" },
+          "calledAt": { "type": "string", "format": "date-time" },
+          "responseSummary": { "type": "string" }
+        }
+      },
+      "appliedAt": {
+        "type": ["string", "null"],
+        "format": "date-time",
+        "description": "MUST only be set when verification.succeeded is true (FR-020)."
+      }
+    },
+    "additionalProperties": false
+  }
+}

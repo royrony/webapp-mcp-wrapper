@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://spec.local/001-webapp-mcp-wrapper/package-manifest.schema.json",
+  "title": "GeneratedMCPServerPackage",
+  "description": "Contract for a generated package's top-level manifest (generate's output). References tools.json (mcp-tool-definition.schema.json, array) and oauthConfig (oauth-config.schema.json) rather than inlining them.",
+  "type": "object",
+  "required": ["webappTargetId", "sourceRunId", "targetLanguage", "runtimeVersion", "deploymentModes", "runtimePolicy"],
+  "properties": {
+    "webappTargetId": { "type": "string" },
+    "sourceRunId": { "type": "string" },
+    "targetLanguage": {
+      "type": "string",
+      "enum": ["node", "python", "java"],
+      "description": "Selected per FR-018. Determines which peer runtime package `serve`/`validate` dispatch to."
+    },
+    "runtimeVersion": {
+      "type": "string",
+      "description": "Pinned version of the selected language's runtime library, recorded for Constitution Principle VII traceability."
+    },
+    "deploymentModes": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["stdio", "streamable-http"] },
+      "minItems": 2,
+      "description": "MUST always contain both values — deployment mode is a serve-time choice, not a generate-time fork (FR-015)."
+    },
+    "runtimePolicy": {
+      "type": "object",
+      "required": ["retry", "logging"],
+      "properties": {
+        "retry": {
+          "type": "object",
+          "required": ["maxAttempts", "backoff"],
+          "properties": {
+            "maxAttempts": { "type": "integer", "const": 3 },
+            "backoff": { "type": "string", "enum": ["exponential-jitter"] }
+          }
+        },
+        "logging": {
+          "type": "object",
+          "required": ["structured"],
+          "properties": {
+            "structured": { "type": "boolean", "const": true }
+          }
+        }
+      },
+      "description": "MUST be identical across targetLanguage values (Constitution Principle VI)."
+    }
+  },
+  "additionalProperties": false
+}

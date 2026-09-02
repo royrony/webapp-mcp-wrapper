@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://spec.local/001-webapp-mcp-wrapper/extraction-report.schema.json",
+  "title": "ExtractionReport",
+  "description": "Contract for the summary report produced after every extraction run (FR-008), including the refresh diff counts used to satisfy SC-005.",
+  "type": "object",
+  "required": ["runId", "webappTargetId", "startedAt", "finishedAt", "counts", "items", "inaccessibleAreas"],
+  "properties": {
+    "runId": { "type": "string" },
+    "webappTargetId": { "type": "string" },
+    "startedAt": { "type": "string", "format": "date-time" },
+    "finishedAt": { "type": "string", "format": "date-time" },
+    "counts": {
+      "type": "object",
+      "required": ["discovered", "mapped", "skipped", "inaccessible", "newSinceLastRun", "removedSinceLastRun"],
+      "properties": {
+        "discovered": { "type": "integer", "minimum": 0 },
+        "mapped": { "type": "integer", "minimum": 0 },
+        "skipped": { "type": "integer", "minimum": 0 },
+        "inaccessible": { "type": "integer", "minimum": 0 },
+        "newSinceLastRun": { "type": "integer", "minimum": 0 },
+        "removedSinceLastRun": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["identityKey", "name", "kind", "mutating", "mappingStatus"],
+        "properties": {
+          "identityKey": { "type": "string" },
+          "name": { "type": "string" },
+          "kind": { "type": "string", "enum": ["api-endpoint", "ui-action"] },
+          "httpMethod": { "type": ["string", "null"] },
+          "mutating": { "type": "boolean" },
+          "mappingStatus": { "type": "string", "enum": ["mapped", "skipped", "inaccessible"] },
+          "mappingStatusReason": { "type": ["string", "null"] }
+        },
+        "allOf": [
+          {
+            "description": "FR-008: non-mapped items must state a reason.",
+            "if": { "properties": { "mappingStatus": { "const": "mapped" } } },
+            "else": { "required": ["mappingStatusReason"] }
+          }
+        ]
+      }
+    },
+    "inaccessibleAreas": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "reason"],
+        "properties": {
+          "path": { "type": "string" },
+          "reason": { "type": "string" }
+        }
+      },
+      "description": "Populated per FR-011 when auth-gated areas were skipped rather than silently omitted."
+    }
+  },
+  "additionalProperties": false
+}

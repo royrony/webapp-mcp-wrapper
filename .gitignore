@@ -1,0 +1,49 @@
+# ---- Secrets / MCP client configs (never commit) ----
+.mcp.json
+.cursor/mcp.json
+.kiro/settings/mcp.json
+*.pat
+*.token
+.env
+.env.*
+
+# ---- Spec-kit / IDE scaffolding (not part of the shipped tool) ----
+.specify/
+.claude/
+.cursor/
+.kiro/
+.idea/
+.vscode/
+specs/
+
+# ---- Node / TypeScript ----
+node_modules/
+dist/
+build/
+coverage/
+*.log
+*.tsbuildinfo
+
+# ---- Python ----
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# ---- Java / Maven ----
+target/
+*.class
+
+# ---- Runtime output / local run store ----
+mcp-wrapper-out/
+*.wrapper-tokens.enc
+.wrapper-tokens.enc
+
+# ---- OS / misc ----
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp

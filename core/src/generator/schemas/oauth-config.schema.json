@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://spec.local/001-webapp-mcp-wrapper/oauth-config.schema.json",
+  "title": "GeneratedMCPServerPackage.oauthConfig",
+  "description": "Contract for the runtime OAuth configuration shipped in a Generated MCP Server Package (FR-014, FR-016). Contains no secrets: authorization is completed interactively at serve-time (research.md #3), and resulting tokens live only in a RuntimeAuthSession per the storage contract, never in this config.",
+  "type": "object",
+  "required": ["authorizationEndpoint", "tokenEndpoint", "clientId", "redirectMode", "scopes"],
+  "properties": {
+    "authorizationEndpoint": { "type": "string", "format": "uri" },
+    "tokenEndpoint": { "type": "string", "format": "uri" },
+    "clientId": { "type": "string", "description": "Public OAuth client identifier; never a client secret." },
+    "redirectMode": {
+      "type": "string",
+      "enum": ["loopback", "hosted"],
+      "description": "loopback: local stdio serve mode opens a system browser to a 127.0.0.1 callback. hosted: streamable-http serve mode uses the configured public redirect URI (FR-016)."
+    },
+    "hostedRedirectUri": {
+      "type": "string",
+      "format": "uri",
+      "description": "Required when redirectMode is 'hosted'; unused otherwise."
+    },
+    "scopes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Minimum scopes needed to call the tools included in this package."
+    },
+    "fallback": {
+      "type": "object",
+      "description": "Documented fallback for webapps that do not support OAuth (spec edge case).",
+      "properties": {
+        "mode": { "type": "string", "enum": ["api-key", "device-code"] },
+        "notes": { "type": "string" }
+      }
+    }
+  },
+  "additionalProperties": false
+}

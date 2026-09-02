@@ -1,0 +1,26 @@
+[project]
+name = "webapp-mcp-wrapper-runtime"
+version = "0.1.0"
+description = "Python peer runtime for generated MCP server packages"
+requires-python = ">=3.11"
+dependencies = [
+    "mcp>=1.2.0",
+    "authlib>=1.4.0",
+    "keyring>=25.6.0",
+    "cryptography>=44.0.0",
+    "tenacity>=9.0.0",
+]
+
+[project.scripts]
+wrapper-runtime-python = "wrapper_runtime.server:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

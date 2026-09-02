@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://spec.local/001-webapp-mcp-wrapper/mcp-tool-definition.schema.json",
+  "title": "MCPToolDefinition",
+  "description": "Contract for a single tool inside a Generated MCP Server Package. Field names match the MCP tool schema (name/description/inputSchema/outputSchema/annotations) so any MCP-compatible AI tool consumes it with no custom mapping.",
+  "type": "object",
+  "required": ["name", "description", "inputSchema", "annotations", "includedByDefault", "sourceIdentityKey"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_-]{1,128}$",
+      "description": "Unique tool name within the generated server."
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human- and model-readable summary of what invoking this tool does (FR-003)."
+    },
+    "inputSchema": {
+      "type": "object",
+      "description": "JSON Schema describing the tool's call arguments, derived from DiscoveredFunctionality.parameters."
+    },
+    "outputSchema": {
+      "type": ["object", "null"],
+      "description": "JSON Schema describing the tool's result shape, when known."
+    },
+    "annotations": {
+      "type": "object",
+      "required": ["readOnlyHint", "destructiveHint", "idempotentHint"],
+      "properties": {
+        "readOnlyHint": {
+          "type": "boolean",
+          "description": "true when the underlying functionality only reads data (FR-007)."
+        },
+        "destructiveHint": {
+          "type": "boolean",
+          "description": "true when invoking this tool can destructively change or remove data."
+        },
+        "idempotentHint": {
+          "type": "boolean",
+          "description": "true when repeating this call has the same effect as calling it once; gates automatic retry (research.md #5)."
+        }
+      },
+      "additionalProperties": false
+    },
+    "includedByDefault": {
+      "type": "boolean",
+      "description": "false for mutating tools unless the user explicitly opts in at generation time (FR-012)."
+    },
+    "sourceIdentityKey": {
+      "type": "string",
+      "description": "Foreign key back to the DiscoveredFunctionality this tool was generated from."
+    }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "description": "FR-012: a mutating tool (readOnlyHint=false) must not be included by default.",
+      "if": {
+        "properties": { "annotations": { "properties": { "readOnlyHint": { "const": false } } } }
+      },
+      "then": {
+        "properties": { "includedByDefault": { "const": false } }
+      }
+    }
+  ]
+}

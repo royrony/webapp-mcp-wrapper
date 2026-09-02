@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://spec.local/001-webapp-mcp-wrapper/validation-run.schema.json",
+  "title": "ValidationRun",
+  "description": "Contract for the report emitted by the `validate` CLI command (FR-021-FR-023) — the record an AI agent driving the Skill reads to decide whether a generated package is ready.",
+  "type": "object",
+  "required": ["packageId", "startedAt", "finishedAt", "toolResults", "authFlowExercised", "retryBehaviorVerified", "remediationAttempts", "overallStatus"],
+  "properties": {
+    "packageId": { "type": "string" },
+    "startedAt": { "type": "string", "format": "date-time" },
+    "finishedAt": { "type": "string", "format": "date-time" },
+    "toolResults": {
+      "type": "array",
+      "description": "One entry per in-scope tool. MUST NOT include a tool excluded by the user's chosen tool scope (FR-022).",
+      "items": {
+        "type": "object",
+        "required": ["toolName", "invoked", "success"],
+        "properties": {
+          "toolName": { "type": "string" },
+          "invoked": { "type": "boolean" },
+          "success": { "type": "boolean" },
+          "error": { "type": "string" }
+        }
+      }
+    },
+    "authFlowExercised": { "type": "boolean" },
+    "retryBehaviorVerified": { "type": "boolean" },
+    "remediationAttempts": {
+      "type": "array",
+      "description": "At most one entry per failed item, per FR-023's automatic-retry floor.",
+      "items": {
+        "type": "object",
+        "required": ["issue", "action", "outcome"],
+        "properties": {
+          "issue": { "type": "string" },
+          "action": { "type": "string" },
+          "outcome": { "type": "string" }
+        }
+      }
+    },
+    "overallStatus": {
+      "type": "string",
+      "enum": ["ready", "failed"],
+      "description": "\"failed\" if any in-scope tool's toolResults entry has success=false after remediationAttempts are exhausted."
+    }
+  },
+  "additionalProperties": false
+}
