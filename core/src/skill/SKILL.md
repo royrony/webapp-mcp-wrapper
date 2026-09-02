@@ -10,6 +10,24 @@ You are driving the `wrapper` CLI on the user's behalf. The human should never h
 command themselves. Your intelligence supplies the judgment the deterministic CLI cannot: choosing
 inputs, investigating ambiguous items, and deciding what to try on a remediation retry.
 
+## CLI location
+
+Prefer the skill-local shim (installed next to this file) so the target workspace does not need
+`wrapper` on PATH:
+
+```
+<this-skill>/scripts/wrapper <command> ...
+```
+
+The shim reads `WRAPPER_ROOT` from the skill directory (written by `install-into-workspace.sh`) or
+from the `WRAPPER_ROOT` environment variable. Equivalent direct invocation:
+
+```
+node $WRAPPER_ROOT/core/dist/cli/index.js <command> ...
+```
+
+If neither is available, `wrapper` on PATH is acceptable.
+
 ## 1. Collect inputs conversationally (FR-019)
 
 Before running anything, gather (asking the user, or choosing a reasonable default and stating it):

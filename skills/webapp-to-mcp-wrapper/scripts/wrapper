@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Skill-local CLI shim. Resolves the wrapper repo and forwards to `wrapper`.
+set -euo pipefail
+
+skill_dir="$(CDPATH="" cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cli=""
+
+if [[ -n "${WRAPPER_ROOT:-}" && -f "${WRAPPER_ROOT}/core/dist/cli/index.js" ]]; then
+  cli="${WRAPPER_ROOT}/core/dist/cli/index.js"
+elif [[ -f "${skill_dir}/WRAPPER_ROOT" ]]; then
+  root="$(tr -d '[:space:]' < "${skill_dir}/WRAPPER_ROOT")"
+  if [[ -f "${root}/core/dist/cli/index.js" ]]; then
+    cli="${root}/core/dist/cli/index.js"
+  fi
+fi
+
+if [[ -z "$cli" ]]; then
+  echo "error: wrapper CLI not found. Set WRAPPER_ROOT to the webapp-mcp-wrapper repo, or re-run install-into-workspace.sh" >&2
+  exit 2
+fi
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "error: Node.js is required to run the wrapper CLI" >&2
+  exit 2
+fi
+
+exec node "$cli" "$@"

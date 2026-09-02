@@ -198,11 +198,25 @@ it. The wrapper itself holds **no LLM credentials**; the intelligence stays enti
 
 ### Load the Skill
 
-- **Claude Code / skills-aware agents**: copy or symlink `core/src/skill/SKILL.md` into the agent's
-  skills directory (e.g. `.claude/skills/webapp-to-mcp-wrapper/SKILL.md`).
-- **Cursor / Kiro / generic agents**: add the contents of `SKILL.md` to the agent's rules/steering,
-  or paste it into the conversation as the system/really-long instruction, then give the agent the
-  webapp URL.
+Install into any workspace (skills.sh layout: canonical copy under `.agents/skills/`, then per-agent
+links for Cursor, Claude Code, and Kiro):
+
+```bash
+./scripts/install-into-workspace.sh /path/to/workspace
+# optional MCP tools for a generated package:
+./scripts/install-into-workspace.sh /path/to/workspace --mcp --package /path/to/package
+```
+
+Or with the skills.sh CLI from inside the target workspace:
+
+```bash
+npx skills add /path/to/webapp-mcp-wrapper --skill webapp-to-mcp-wrapper -a cursor -a claude-code -a kiro-cli -y
+```
+
+- **Claude Code / skills-aware agents**: the installer links `SKILL.md` at
+  `.claude/skills/webapp-to-mcp-wrapper/`.
+- **Cursor / Kiro**: `.cursor/skills/` and `.kiro/skills/` respectively (Cursor also gets
+  `.agents/skills/` to match skills.sh).
 
 ### What the agent does
 

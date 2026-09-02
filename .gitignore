@@ -12,6 +12,7 @@
 .claude/
 .cursor/
 .kiro/
+.agents/
 .idea/
 .vscode/
 specs/
