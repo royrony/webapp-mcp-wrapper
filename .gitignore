@@ -40,6 +40,7 @@ target/
 
 # ---- Runtime output / local run store ----
 mcp-wrapper-out/
+out/
 *.wrapper-tokens.enc
 .wrapper-tokens.enc
 
