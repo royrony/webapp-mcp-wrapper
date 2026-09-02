@@ -44,7 +44,7 @@ cd runtimes/java   && mvn -q package
 
 ```bash
 # 1. Discover functionality and produce an Extraction Report
-wrapper extract https://app.example --out ./out [--json] [--auth-session session.json] [--max-pages 50]
+wrapper extract https://app.example --out ./out [--json] [--cdp-url http://localhost:9222] [--auth-session session.json] [--max-pages 50]
 
 # 2. (optional) Resolve ambiguous/skipped items with verified overrides
 wrapper apply-overrides https://app.example ./out/overrides.json --out ./out

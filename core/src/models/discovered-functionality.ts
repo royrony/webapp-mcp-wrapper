@@ -18,6 +18,10 @@ export interface DiscoveredFunctionality {
   description: string;
   kind: FunctionalityKind;
   httpMethod: string | null;
+  /** Origin the call was observed against (e.g. "https://api.example.com"). Preserved so tools
+   * that live on a different host than the webapp entry point dispatch to the correct server.
+   * Optional for backward compatibility; when absent, dispatch falls back to the webapp origin. */
+  baseUrl?: string;
   parameters: FunctionalityParameter[];
   expectedOutput: Record<string, unknown> | null;
   mutating: boolean;

@@ -79,12 +79,21 @@ export function describeApiCall(call: RawApiCall, ctx: DescribeContext): Discove
     }
   })();
 
+  const baseUrl = (() => {
+    try {
+      return new URL(call.url).origin;
+    } catch {
+      return undefined;
+    }
+  })();
+
   return {
     identityKey,
     name,
     description: `${cls.mutating ? "Performs" : "Reads"} ${call.method} ${path}`,
     kind: "api-endpoint",
     httpMethod: call.method,
+    baseUrl,
     parameters,
     expectedOutput,
     mutating: cls.mutating,

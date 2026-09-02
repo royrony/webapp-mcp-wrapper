@@ -28,6 +28,8 @@ public final class Manifest {
     public ToolAnnotations annotations;
     public boolean includedByDefault;
     public String sourceIdentityKey;
+    /** Absolute origin this tool's endpoint lives on; null when it shares the webapp origin. */
+    public String baseUrl;
   }
 
   public static final class LoadedPackage {

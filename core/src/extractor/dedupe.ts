@@ -31,6 +31,7 @@ function mergeItems(a: DiscoveredFunctionality, b: DiscoveredFunctionality): Dis
 
   return {
     ...primary,
+    baseUrl: primary.baseUrl ?? secondary.baseUrl,
     parameters: [...params.values()],
     expectedOutput: primary.expectedOutput ?? secondary.expectedOutput,
     firstSeenRun:

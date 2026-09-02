@@ -4,7 +4,7 @@
 
 import type { Fetcher, FetchedResponse } from "./fetcher.js";
 import type { RobotsPolicy } from "../models/webapp-target.js";
-import { mayCrawl } from "./robots-policy.js";
+import { isWithinDomain, mayCrawl } from "./robots-policy.js";
 
 export interface DiscoveredForm {
   action: string;
@@ -85,6 +85,8 @@ export interface CrawlOptions {
   domainBoundary: string;
   robotsPolicy: RobotsPolicy;
   maxPages: number;
+  /** Reuse the root response already fetched during reachability validation. */
+  initialResponse?: FetchedResponse;
   /** Optional callback fired for every fetched response (used by the api-sniffer). */
   onResponse?: (res: FetchedResponse) => void;
 }
@@ -98,6 +100,7 @@ export async function crawl(
   const pages: CrawledPage[] = [];
   const skipped: CrawlResult["skipped"] = [];
   const authGated: CrawlResult["authGated"] = [];
+  const authGateKeys = new Set<string>();
   const seen = new Set<string>();
   const queue: string[] = [rootUrl];
 
@@ -113,25 +116,42 @@ export async function crawl(
 
     let res: FetchedResponse;
     try {
-      res = await fetcher.fetch(url);
+      res =
+        url === rootUrl && opts.initialResponse
+          ? opts.initialResponse
+          : await fetcher.fetch(url);
     } catch (e) {
       skipped.push({ url, reason: `fetch error: ${(e as Error).message}` });
       continue;
     }
-    opts.onResponse?.(res);
+
+    for (const response of [res, ...(res.observedResponses ?? [])]) {
+      if (response.status === 401 || response.status === 403) {
+        const key = `${response.status} ${response.url}`;
+        if (!authGateKeys.has(key)) {
+          authGateKeys.add(key);
+          authGated.push({ url: response.url, status: response.status });
+        }
+      } else {
+        opts.onResponse?.(response);
+      }
+    }
 
     if (res.status === 401 || res.status === 403) {
-      authGated.push({ url, status: res.status });
       continue;
     }
     if (res.status >= 400) {
       continue;
     }
+    if (!isWithinDomain(res.url, opts.domainBoundary)) {
+      skipped.push({ url: res.url, reason: "redirected outside domain boundary" });
+      continue;
+    }
 
     const isHtml = res.contentType.includes("text/html") || res.body.trimStart().startsWith("<");
-    const links = isHtml ? extractLinks(url, res.body) : [];
-    const forms = isHtml ? extractForms(url, res.body) : [];
-    pages.push({ url, status: res.status, links, forms });
+    const links = isHtml ? extractLinks(res.url, res.body) : [];
+    const forms = isHtml ? extractForms(res.url, res.body) : [];
+    pages.push({ url: res.url, status: res.status, links, forms });
 
     for (const link of links) {
       if (!seen.has(link) && mayCrawl(link, opts.domainBoundary, opts.robotsPolicy)) {

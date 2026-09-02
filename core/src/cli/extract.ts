@@ -5,7 +5,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 
 import { validateContract } from "../generator/validate-contract.js";
-import { createFetcher, HttpFetcher } from "../extractor/fetcher.js";
+import { createFetcher } from "../extractor/fetcher.js";
 import { runExtraction } from "../extractor/pipeline.js";
 import { domainBoundaryOf } from "../extractor/robots-policy.js";
 import { RunStore } from "../report/run-store.js";
@@ -16,6 +16,8 @@ import { defaultOutDir, webappTargetId } from "./paths.js";
 
 export interface ExtractOptions {
   authSession?: string;
+  /** Chrome DevTools URL; reuse a live logged-in browser for any webapp. */
+  cdpUrl?: string;
   maxPages?: number;
   out?: string;
   json?: boolean;
@@ -29,22 +31,31 @@ export async function extractCommand(rootUrl: string, opts: ExtractOptions): Pro
   const domainBoundary = domainBoundaryOf(rootUrl);
 
   let extraHeaders: Record<string, string> = {};
-  let authSession = false;
+  const authSession = Boolean(opts.authSession || opts.cdpUrl);
   if (opts.authSession) {
     extraHeaders = await loadAuthSession(opts.authSession);
-    authSession = true;
+  }
+  if (opts.cdpUrl && process.env.WRAPPER_FORCE_HTTP_FETCHER === "1") {
+    throw new CliError(
+      EXIT.INVALID_ARGS,
+      "Cannot use --cdp-url with WRAPPER_FORCE_HTTP_FETCHER=1; CDP needs a live browser.",
+    );
   }
 
-  const fetcher = opts.authSession ? new HttpFetcher(extraHeaders) : await createFetcher(extraHeaders);
-
-  const result = await runExtraction({
-    rootUrl,
-    domainBoundary,
-    webappTargetId: targetId,
-    maxPages: opts.maxPages ?? 50,
-    fetcher,
-    authSession,
-  });
+  const fetcher = await createFetcher(extraHeaders, { cdpUrl: opts.cdpUrl });
+  let result: Awaited<ReturnType<typeof runExtraction>>;
+  try {
+    result = await runExtraction({
+      rootUrl,
+      domainBoundary,
+      webappTargetId: targetId,
+      maxPages: opts.maxPages ?? 50,
+      fetcher,
+      authSession,
+    });
+  } finally {
+    await fetcher.close?.();
+  }
 
   if (!result.reachable) {
     const msg = `Unreachable URL: ${rootUrl}${result.error ? ` (${result.error})` : ""}`;
@@ -99,6 +110,7 @@ async function loadAuthSession(file: string): Promise<Record<string, string>> {
     const parsed = JSON.parse(raw);
     if (parsed.headers && typeof parsed.headers === "object") return parsed.headers;
     if (parsed.cookie) return { cookie: String(parsed.cookie) };
+    if (parsed.authorization) return { authorization: String(parsed.authorization) };
   } catch {
     // treat the whole file as a cookie header value
     return { cookie: raw.trim() };

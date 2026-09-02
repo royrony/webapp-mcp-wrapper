@@ -53,7 +53,7 @@ export class ApiSniffer {
   private readonly calls = new Map<string, RawApiCall>();
 
   /** Called for each response the crawler fetched. */
-  observe(res: FetchedResponse, method = "GET"): void {
+  observe(res: FetchedResponse, method = res.requestMethod ?? "GET"): void {
     if (!looksLikeApi(res)) return;
     let sample: Record<string, unknown> | null = null;
     try {

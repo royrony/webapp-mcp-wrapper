@@ -81,6 +81,7 @@ export async function runExtraction(params: ExtractParams): Promise<ExtractOutpu
     domainBoundary: params.domainBoundary,
     robotsPolicy,
     maxPages: params.maxPages,
+    initialResponse: reachability.response,
     onResponse: (res) => sniffer.observe(res),
   });
 

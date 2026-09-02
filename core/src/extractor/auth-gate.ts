@@ -30,7 +30,7 @@ export function toInaccessibleAreas(hits: AuthGateHit[]): InaccessibleArea[] {
     seen.add(pathname);
     areas.push({
       path: pathname,
-      reason: `Authentication required (HTTP ${hit.status}); supply --auth-session to include this area.`,
+      reason: `Authentication required (HTTP ${hit.status}); supply --cdp-url or --auth-session to include this area.`,
     });
   }
   return areas;

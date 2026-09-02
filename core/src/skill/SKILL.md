@@ -33,9 +33,11 @@ If neither is available, `wrapper` on PATH is acceptable.
 Before running anything, gather (asking the user, or choosing a reasonable default and stating it):
 
 - **Webapp URL** — the entry point to wrap. Required.
-- **Authentication mechanism** — how the wrapped webapp authenticates callers (OAuth is the primary
-  path; API-key/device-code are documented fallbacks). If discovery needs an authenticated session,
-  ask for a captured session file for `--auth-session`.
+- **Authentication** — if the site gates APIs behind login, pick one universal mechanism:
+  - **`--cdp-url http://localhost:9222`** (preferred): Chrome already logged in; reuse that
+    browser session. Do not export cookies or tokens.
+  - **`--auth-session file.json`**: a local file of request headers (`headers`, `cookie`, or
+    `authorization`). Never paste secrets into the conversation; only pass the file path.
 - **Target language** — `node`, `python`, or `java` (FR-018). All three produce an identical tool
   set; the choice is a deployment preference.
 - **Tool scope** — read-only only (default, safest), or include mutating tools. This maps to whether
@@ -44,7 +46,7 @@ Before running anything, gather (asking the user, or choosing a reasonable defau
 ## 2. Extract
 
 ```
-wrapper extract <url> --out ./out --json
+wrapper extract <url> --out ./out --json [--cdp-url http://localhost:9222 | --auth-session session.json]
 ```
 
 Read the resulting `ExtractionReport`. Note every item whose `mappingStatus` is `skipped` or

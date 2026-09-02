@@ -17,6 +17,8 @@ export interface ApplyOverridesOptions {
   run?: string;
   out?: string;
   json?: boolean;
+  /** Chrome DevTools URL; reuse a live logged-in browser so verification calls are authenticated. */
+  cdpUrl?: string;
   /** Injectable fetcher for tests. */
   fetcher?: Fetcher;
 }
@@ -59,48 +61,55 @@ export async function applyOverridesCommand(
     throw new CliError(EXIT.NO_EXTRACTION_RUN, `No extraction run found for ${rootUrl}. Run \`extract\` first.`);
   }
 
-  const fetcher = opts.fetcher ?? (await createFetcher());
+  const fetcher = opts.fetcher ?? (await createFetcher({}, { cdpUrl: opts.cdpUrl }));
   const byKey = new Map(run.functionality.map((f) => [f.identityKey, f]));
   const results: Array<{ identityKey: string; verified: boolean; reason?: string }> = [];
 
-  for (const override of overrides) {
-    const item = byKey.get(override.identityKey);
-    if (!item) {
-      override.verification = { attempted: false, succeeded: false, responseSummary: "unknown identityKey" };
-      override.appliedAt = null;
-      results.push({ identityKey: override.identityKey, verified: false, reason: "unknown identityKey" });
-      continue;
-    }
+  try {
+    for (const override of overrides) {
+      const item = byKey.get(override.identityKey);
+      if (!item) {
+        override.verification = { attempted: false, succeeded: false, responseSummary: "unknown identityKey" };
+        override.appliedAt = null;
+        results.push({ identityKey: override.identityKey, verified: false, reason: "unknown identityKey" });
+        continue;
+      }
 
-    // Make a real verification call using the proposed fix.
-    const [method, pathTemplate] = item.identityKey.split(" ");
-    const url = new URL(pathTemplate.replace(/\{[^}]+\}/g, "1"), rootUrl).toString();
-    let succeeded = false;
-    let summary = "";
-    try {
-      const res = await fetcher.fetch(url, { method });
-      succeeded = res.status < 400;
-      summary = `HTTP ${res.status}`;
-    } catch (e) {
-      summary = `error: ${(e as Error).message}`;
-    }
+      // Make a real verification call using the proposed fix.
+      const [method, pathTemplate] = item.identityKey.split(" ");
+      // Prefer the endpoint's own origin (multi-host apps: API lives off the webapp host);
+      // fall back to the webapp root when the item predates host preservation.
+      const origin = item.baseUrl ?? rootUrl;
+      const url = new URL(pathTemplate.replace(/\{[^}]+\}/g, "1"), origin).toString();
+      let succeeded = false;
+      let summary = "";
+      try {
+        const res = await fetcher.fetch(url, { method });
+        succeeded = res.status < 400;
+        summary = `HTTP ${res.status}`;
+      } catch (e) {
+        summary = `error: ${(e as Error).message}`;
+      }
 
-    override.verification = {
-      attempted: true,
-      succeeded,
-      calledAt: new Date().toISOString(),
-      responseSummary: summary,
-    };
-    override.appliedAt = succeeded ? new Date().toISOString() : null;
+      override.verification = {
+        attempted: true,
+        succeeded,
+        calledAt: new Date().toISOString(),
+        responseSummary: summary,
+      };
+      override.appliedAt = succeeded ? new Date().toISOString() : null;
 
-    if (succeeded) {
-      item.mappingStatus = "mapped";
-      item.mappingStatusReason = null;
-      if (override.proposedFix.description) item.description = override.proposedFix.description;
-      if (override.proposedFix.parameters) item.parameters = override.proposedFix.parameters;
-      if (override.proposedFix.outputSchema) item.expectedOutput = override.proposedFix.outputSchema;
+      if (succeeded) {
+        item.mappingStatus = "mapped";
+        item.mappingStatusReason = null;
+        if (override.proposedFix.description) item.description = override.proposedFix.description;
+        if (override.proposedFix.parameters) item.parameters = override.proposedFix.parameters;
+        if (override.proposedFix.outputSchema) item.expectedOutput = override.proposedFix.outputSchema;
+      }
+      results.push({ identityKey: override.identityKey, verified: succeeded, reason: summary });
     }
-    results.push({ identityKey: override.identityKey, verified: succeeded, reason: summary });
+  } finally {
+    if (!opts.fetcher) await fetcher.close?.();
   }
 
   await store.recordOverrides(overrides);

@@ -38,7 +38,8 @@ export function buildProgram(): Command {
   program
     .command("extract")
     .argument("<root-url>", "webapp entry point")
-    .option("--auth-session <file>", "captured authenticated session for gated areas")
+    .option("--auth-session <file>", "captured cookie/header session for gated areas")
+    .option("--cdp-url <url>", "attach to a live Chrome DevTools session (reuses the browser login)")
     .option("--max-pages <n>", "crawl scope bound", (v) => parseInt(v, 10))
     .option("--out <dir>", "output directory")
     .option("--json", "emit machine-readable JSON")
@@ -46,6 +47,7 @@ export function buildProgram(): Command {
       runHandler(() =>
         extractCommand(rootUrl, {
           authSession: opts.authSession,
+          cdpUrl: opts.cdpUrl,
           maxPages: opts.maxPages,
           out: opts.out,
           json: Boolean(opts.json),
@@ -58,12 +60,14 @@ export function buildProgram(): Command {
     .argument("<root-url>", "webapp entry point")
     .argument("<overrides-file>", "resolution-override.schema.json file")
     .option("--run <runId>", "target a specific run")
+    .option("--cdp-url <url>", "attach to a live Chrome DevTools session so verification calls are authenticated")
     .option("--out <dir>", "run store directory")
     .option("--json", "emit machine-readable JSON")
     .action((rootUrl, overridesFile, opts) =>
       runHandler(() =>
         applyOverridesCommand(rootUrl, overridesFile, {
           run: opts.run,
+          cdpUrl: opts.cdpUrl,
           out: opts.out,
           json: Boolean(opts.json),
         }),
@@ -127,7 +131,8 @@ export function buildProgram(): Command {
   program
     .command("refresh")
     .argument("<root-url>", "webapp entry point")
-    .option("--auth-session <file>", "captured authenticated session")
+    .option("--auth-session <file>", "captured cookie/header session")
+    .option("--cdp-url <url>", "attach to a live Chrome DevTools session")
     .option("--lang <lang>", "override the previously selected language")
     .option("--include-mutating", "override mutating inclusion")
     .option("--out <dir>", "output directory")
@@ -136,6 +141,7 @@ export function buildProgram(): Command {
       runHandler(() =>
         refreshCommand(rootUrl, {
           authSession: opts.authSession,
+          cdpUrl: opts.cdpUrl,
           lang: opts.lang,
           includeMutating: opts.includeMutating,
           out: opts.out,

@@ -55,6 +55,7 @@ export function buildToolManifest(
       // ALWAYS false for mutating tools (schema-enforced). Opt-in lives in the tool scope.
       includedByDefault: readOnly,
       sourceIdentityKey: f.identityKey,
+      ...(f.baseUrl ? { baseUrl: f.baseUrl } : {}),
     });
   }
   tools.sort((a, b) => a.name.localeCompare(b.name));

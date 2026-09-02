@@ -20,12 +20,18 @@ public final class Server {
 
   private Server() {}
 
-  /** Reconstruct (url, method) for a tool from its sourceIdentityKey ("METHOD /path"). */
+  /** Reconstruct (url, method) for a tool from its sourceIdentityKey ("METHOD /path").
+   * When the tool carries its own baseUrl (multi-host apps), that origin wins over the
+   * webapp-derived fallback so calls reach the correct API server. */
   public static String[] toolToRequest(
       Manifest.ToolDefinition tool, Map<String, Object> args, String baseUrl) {
     String[] parts = tool.sourceIdentityKey.split(" ", 2);
     String method = parts[0];
     String pathTemplate = parts.length > 1 ? parts[1] : "/";
+    String origin =
+        (tool.baseUrl != null && !tool.baseUrl.isBlank())
+            ? stripTrailingSlash(tool.baseUrl)
+            : baseUrl;
     String filled = pathTemplate;
     StringBuilder query = new StringBuilder();
     for (Map.Entry<String, Object> e : args.entrySet()) {
@@ -40,8 +46,12 @@ public final class Server {
         query.append(e.getKey()).append("=").append(String.valueOf(e.getValue()));
       }
     }
-    String url = baseUrl + filled + (query.length() > 0 ? "?" + query : "");
+    String url = origin + filled + (query.length() > 0 ? "?" + query : "");
     return new String[] {url, method};
+  }
+
+  private static String stripTrailingSlash(String s) {
+    return s.endsWith("/") ? s.substring(0, s.length() - 1) : s;
   }
 
   /** Invoke a single tool against the wrapped webapp with reliability. */

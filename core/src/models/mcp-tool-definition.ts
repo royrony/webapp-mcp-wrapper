@@ -21,4 +21,7 @@ export interface MCPToolDefinition {
   /** false for mutating tools unless the user opts in at generation time (FR-012). */
   includedByDefault: boolean;
   sourceIdentityKey: string;
+  /** Absolute origin the tool's endpoint lives on (e.g. "https://api.example.com"). Optional;
+   * when absent, the runtime dispatches against the webapp origin from the manifest. */
+  baseUrl?: string;
 }

@@ -11,6 +11,7 @@ import { defaultOutDir } from "./paths.js";
 
 export interface RefreshOptions {
   authSession?: string;
+  cdpUrl?: string;
   lang?: string;
   includeMutating?: boolean;
   out?: string;
@@ -49,6 +50,7 @@ export async function refreshCommand(rootUrl: string, opts: RefreshOptions): Pro
   // 1. Extract with diff enabled so new/removed counts are populated.
   const extractCode = await extractCommand(rootUrl, {
     authSession: opts.authSession,
+    cdpUrl: opts.cdpUrl,
     out: opts.out,
     json: opts.json,
     diff: true,

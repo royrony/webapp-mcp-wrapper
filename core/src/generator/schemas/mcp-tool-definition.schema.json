@@ -50,6 +50,10 @@
     "sourceIdentityKey": {
       "type": "string",
       "description": "Foreign key back to the DiscoveredFunctionality this tool was generated from."
+    },
+    "baseUrl": {
+      "type": "string",
+      "description": "Absolute origin the tool's endpoint lives on (e.g. https://api.example.com), preserved when it differs from the webapp entry point. When absent, the runtime dispatches against the webapp origin from the manifest."
     }
   },
   "additionalProperties": false,

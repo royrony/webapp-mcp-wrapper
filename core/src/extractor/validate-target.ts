@@ -1,11 +1,12 @@
 // T024: webapp URL reachability validation (FR-009; exit code 1 per cli-commands.md).
 
-import type { Fetcher } from "./fetcher.js";
+import type { FetchedResponse, Fetcher } from "./fetcher.js";
 
 export interface TargetValidationResult {
   reachable: boolean;
   status?: number;
   error?: string;
+  response?: FetchedResponse;
 }
 
 /** Validate the root URL is well-formed and reachable before crawling begins. */
@@ -28,7 +29,7 @@ export async function validateTarget(
     if (res.status === 0) {
       return { reachable: false, error: "No HTTP response" };
     }
-    return { reachable: true, status: res.status };
+    return { reachable: true, status: res.status, response: res };
   } catch (e) {
     return { reachable: false, error: (e as Error).message };
   }
