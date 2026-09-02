@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [master, dev]
+  pull_request:
+    branches: [master, dev]
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Crawl server-rendered targets without a browser binary in CI.
+  WRAPPER_FORCE_HTTP_FETCHER: "1"
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+
+jobs:
+  test:
+    name: build & test (core + runtimes + cross-language)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      # ---- Core: install, build, test ----
+      - name: Core - install
+        working-directory: core
+        run: npm install --no-audit --no-fund
+
+      - name: Core - build
+        working-directory: core
+        run: npm run build
+
+      - name: Core - test
+        working-directory: core
+        run: npm test
+
+      # ---- Node runtime: install + build (SDK-backed, dynamic imports) ----
+      - name: Node runtime - install
+        working-directory: runtimes/node
+        run: npm install --no-audit --no-fund
+
+      - name: Node runtime - build
+        working-directory: runtimes/node
+        run: npm run build
+
+      # ---- Python runtime: install + pytest ----
+      - name: Python runtime - install
+        working-directory: runtimes/python
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install pytest
+
+      - name: Python runtime - test
+        working-directory: runtimes/python
+        run: pytest -q
+
+      # ---- Java runtime: compile + test ----
+      - name: Java runtime - test
+        working-directory: runtimes/java
+        run: mvn -B -q test
+
+      # ---- Cross-language conformance (needs core/dist from the core build above) ----
+      - name: Cross-language - install
+        working-directory: tests/cross-language
+        run: npm install --no-audit --no-fund
+
+      - name: Cross-language - conformance
+        working-directory: tests/cross-language
+        run: npm test
