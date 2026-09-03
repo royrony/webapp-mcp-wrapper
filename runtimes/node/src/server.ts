@@ -93,19 +93,46 @@ async function readBody(res: Response): Promise<unknown> {
   }
 }
 
+/** Convert the tool's JSON-Schema inputSchema into a Zod raw shape, which the MCP SDK's
+ * registerTool expects. Our generator emits `{type:"object", properties:{name:{type}}, required[]}`;
+ * we map each property to a Zod primitive and mark non-required ones optional. Unknown/oddly-shaped
+ * schemas fall back to an empty shape (no declared args) so registration never throws. */
+function toZodShape(inputSchema: Record<string, unknown>, z: typeof import("zod").z): Record<string, unknown> {
+  const shape: Record<string, unknown> = {};
+  const props = (inputSchema?.properties ?? {}) as Record<string, { type?: string }>;
+  const required = new Set((inputSchema?.required as string[] | undefined) ?? []);
+  for (const [key, def] of Object.entries(props)) {
+    let field: import("zod").ZodTypeAny;
+    switch (def?.type) {
+      case "number":
+      case "integer":
+        field = z.number();
+        break;
+      case "boolean":
+        field = z.boolean();
+        break;
+      default:
+        field = z.string();
+    }
+    shape[key] = required.has(key) ? field : field.optional();
+  }
+  return shape;
+}
+
 /** Register all in-scope tools with an MCP server instance. */
 export async function registerTools(pkg: LoadedPackage, ctx: ToolDispatchContext): Promise<{
   register: (server: McpServerLike) => void;
   tools: ToolDefinition[];
 }> {
   const tools = inScopeTools(pkg.tools, pkg.scope);
+  const { z } = await import("zod");
   const register = (server: McpServerLike) => {
     for (const tool of tools) {
       server.registerTool(
         tool.name,
         {
           description: tool.description,
-          inputSchema: tool.inputSchema,
+          inputSchema: toZodShape(tool.inputSchema, z),
           annotations: tool.annotations,
         },
         async (args: Record<string, unknown>) => {
