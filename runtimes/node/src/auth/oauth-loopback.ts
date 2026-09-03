@@ -5,7 +5,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import http from "node:http";
 
-import type { OAuthConfig } from "../manifest.js";
+import type { OAuthStrategyConfig } from "../manifest.js";
 
 export interface TokenSet {
   accessToken: string;
@@ -22,7 +22,7 @@ export function generatePkce(): { verifier: string; challenge: string } {
 
 /** Build the authorization URL for the loopback flow. */
 export function buildAuthorizationUrl(
-  config: OAuthConfig,
+  config: OAuthStrategyConfig,
   redirectUri: string,
   challenge: string,
   state: string,
@@ -48,7 +48,7 @@ export interface LoopbackDeps {
 }
 
 /** Run the loopback authorization-code+PKCE flow, returning the token set. */
-export async function runLoopbackFlow(config: OAuthConfig, deps: LoopbackDeps = {}): Promise<TokenSet> {
+export async function runLoopbackFlow(config: OAuthStrategyConfig, deps: LoopbackDeps = {}): Promise<TokenSet> {
   const { verifier, challenge } = generatePkce();
   const state = randomBytes(8).toString("hex");
 
@@ -90,7 +90,7 @@ function defaultOpenBrowser(url: string): void {
 }
 
 /** Real code exchange via openid-client, loaded lazily so tests need no network. */
-function defaultExchange(config: OAuthConfig) {
+function defaultExchange(config: OAuthStrategyConfig) {
   return async (code: string, verifier: string, redirectUri: string): Promise<TokenSet> => {
     const res = await fetch(config.tokenEndpoint, {
       method: "POST",

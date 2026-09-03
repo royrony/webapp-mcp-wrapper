@@ -1,28 +1,54 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://spec.local/001-webapp-mcp-wrapper/oauth-config.schema.json",
-  "title": "GeneratedMCPServerPackage.oauthConfig",
-  "description": "Contract for the runtime OAuth configuration shipped in a Generated MCP Server Package (FR-014, FR-016). Contains no secrets: authorization is completed interactively at serve-time (research.md #3), and resulting tokens live only in a RuntimeAuthSession per the storage contract, never in this config.",
+  "title": "GeneratedMCPServerPackage.authConfig",
+  "description": "Runtime auth configuration shipped in a Generated MCP Server Package (FR-014, FR-014a, FR-016). Pluggable per constitution v1.2.0 Principle V. 'strategy' selects the branch; when absent it defaults to 'oauth' for backward compatibility. Contains NO secrets, raw tokens, or reused cookies — credentials live only in a RuntimeAuthSession, never here. Filename stays oauthConfig.json for compatibility.",
   "type": "object",
-  "required": ["authorizationEndpoint", "tokenEndpoint", "clientId", "redirectMode", "scopes"],
   "properties": {
-    "authorizationEndpoint": { "type": "string", "format": "uri" },
-    "tokenEndpoint": { "type": "string", "format": "uri" },
-    "clientId": { "type": "string", "description": "Public OAuth client identifier; never a client secret." },
+    "strategy": {
+      "type": "string",
+      "enum": ["oauth", "session-reuse", "api-key"],
+      "description": "Which runtime auth strategy this package uses (FR-014). Defaults to 'oauth' when omitted."
+    },
+    "authorizationEndpoint": { "type": "string", "format": "uri", "description": "OAuth strategy only." },
+    "tokenEndpoint": { "type": "string", "format": "uri", "description": "OAuth strategy only." },
+    "clientId": { "type": "string", "description": "OAuth strategy only. Public client id; never a secret." },
     "redirectMode": {
       "type": "string",
       "enum": ["loopback", "hosted"],
-      "description": "loopback: local stdio serve mode opens a system browser to a 127.0.0.1 callback. hosted: streamable-http serve mode uses the configured public redirect URI (FR-016)."
+      "description": "OAuth strategy only. loopback: stdio opens a 127.0.0.1 callback. hosted: streamable-http uses hostedRedirectUri (FR-016)."
     },
     "hostedRedirectUri": {
       "type": "string",
       "format": "uri",
-      "description": "Required when redirectMode is 'hosted'; unused otherwise."
+      "description": "OAuth strategy, required when redirectMode is 'hosted'."
     },
     "scopes": {
       "type": "array",
       "items": { "type": "string" },
-      "description": "Minimum scopes needed to call the tools included in this package."
+      "description": "OAuth strategy. Minimum scopes for the included tools."
+    },
+    "cdpUrl": {
+      "type": "string",
+      "description": "session-reuse strategy. Default Chrome DevTools endpoint (e.g. http://localhost:9222); overridable at deploy time; never a secret."
+    },
+    "cookieHosts": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "session-reuse strategy. Hosts whose cookies the runtime reads and attaches (typically the tools' baseUrl hosts)."
+    },
+    "loginUrl": {
+      "type": "string",
+      "format": "uri",
+      "description": "session-reuse strategy. Optional URL to navigate the browser to when a session is missing/expired."
+    },
+    "headerName": {
+      "type": "string",
+      "description": "api-key strategy. Header the credential is sent in (e.g. Authorization, X-API-Key)."
+    },
+    "valuePrefix": {
+      "type": "string",
+      "description": "api-key strategy. Optional prefix prepended to the credential value (e.g. 'Bearer ')."
     },
     "fallback": {
       "type": "object",

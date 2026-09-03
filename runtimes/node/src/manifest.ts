@@ -18,6 +18,8 @@ export interface ToolDefinition {
   annotations: ToolAnnotations;
   includedByDefault: boolean;
   sourceIdentityKey: string;
+  /** Absolute origin this tool's endpoint lives on (FR-025); when absent, dispatch uses the webapp origin. */
+  baseUrl?: string;
 }
 
 export interface PackageManifest {
@@ -32,14 +34,52 @@ export interface PackageManifest {
   };
 }
 
+export type AuthStrategyName = "oauth" | "session-reuse" | "api-key";
+
 export interface OAuthConfig {
+  /** Selected auth strategy (FR-014). Defaults to "oauth" when omitted. */
+  strategy?: AuthStrategyName;
+  // OAuth
+  authorizationEndpoint?: string;
+  tokenEndpoint?: string;
+  clientId?: string;
+  redirectMode?: "loopback" | "hosted";
+  hostedRedirectUri?: string;
+  scopes?: string[];
+  // session-reuse
+  cdpUrl?: string;
+  cookieHosts?: string[];
+  loginUrl?: string;
+  // api-key
+  headerName?: string;
+  valuePrefix?: string;
+  fallback?: { mode?: "api-key" | "device-code"; notes?: string };
+}
+
+/** Narrowed view used by the OAuth flow implementations, where these fields are required. */
+export interface OAuthStrategyConfig {
   authorizationEndpoint: string;
   tokenEndpoint: string;
   clientId: string;
   redirectMode: "loopback" | "hosted";
   hostedRedirectUri?: string;
   scopes: string[];
-  fallback?: { mode?: "api-key" | "device-code"; notes?: string };
+}
+
+/** Coerce a package auth config into an OAuthStrategyConfig, filling safe defaults. Throws if the
+ * essential OAuth endpoints are missing (an oauth-strategy package must carry them). */
+export function asOAuthConfig(cfg: OAuthConfig): OAuthStrategyConfig {
+  if (!cfg.authorizationEndpoint || !cfg.tokenEndpoint || !cfg.clientId) {
+    throw new Error("oauth strategy requires authorizationEndpoint, tokenEndpoint and clientId");
+  }
+  return {
+    authorizationEndpoint: cfg.authorizationEndpoint,
+    tokenEndpoint: cfg.tokenEndpoint,
+    clientId: cfg.clientId,
+    redirectMode: cfg.redirectMode ?? "loopback",
+    hostedRedirectUri: cfg.hostedRedirectUri,
+    scopes: cfg.scopes ?? [],
+  };
 }
 
 export interface LoadedPackage {

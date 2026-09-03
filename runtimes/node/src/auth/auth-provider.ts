@@ -4,6 +4,7 @@
 // api-key fallback for webapps without OAuth (contracts/oauth-config.schema.json `fallback`).
 
 import type { OAuthConfig } from "../manifest.js";
+import { asOAuthConfig } from "../manifest.js";
 import { runLoopbackFlow } from "./oauth-loopback.js";
 import { createTokenStore, type TokenStore } from "./token-store.js";
 
@@ -37,7 +38,7 @@ export function createAuthProvider(config: OAuthConfig, opts: AuthProviderOption
       }
       // Token missing/expired: run the interactive OAuth flow (loopback for stdio).
       if (opts.mode === "stdio") {
-        const tokens = await runLoopbackFlow(config);
+        const tokens = await runLoopbackFlow(asOAuthConfig(config));
         await store.save(opts.session, tokens);
         return tokens.accessToken;
       }

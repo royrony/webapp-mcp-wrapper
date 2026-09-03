@@ -4,7 +4,7 @@
 
 import { randomBytes } from "node:crypto";
 
-import type { OAuthConfig } from "../manifest.js";
+import type { OAuthStrategyConfig } from "../manifest.js";
 import { buildAuthorizationUrl, generatePkce, type TokenSet } from "./oauth-loopback.js";
 
 export interface HostedFlowState {
@@ -16,7 +16,7 @@ export interface HostedFlowState {
 
 /** Begin the hosted flow: produce the URL to redirect the user to. The caller (hosted server)
  * completes it when the public redirect URI receives the code. */
-export function beginHostedFlow(config: OAuthConfig): HostedFlowState {
+export function beginHostedFlow(config: OAuthStrategyConfig): HostedFlowState {
   if (config.redirectMode !== "hosted" || !config.hostedRedirectUri) {
     throw new Error("hosted flow requires redirectMode 'hosted' and a hostedRedirectUri");
   }
@@ -28,7 +28,7 @@ export function beginHostedFlow(config: OAuthConfig): HostedFlowState {
 
 /** Complete the hosted flow given the code returned to the public redirect URI. */
 export async function completeHostedFlow(
-  config: OAuthConfig,
+  config: OAuthStrategyConfig,
   flow: HostedFlowState,
   code: string,
   returnedState: string,

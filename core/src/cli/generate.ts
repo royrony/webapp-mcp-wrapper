@@ -23,6 +23,10 @@ export interface GenerateOptions {
   includeMutating?: boolean;
   out?: string;
   json?: boolean;
+  /** Runtime auth strategy for the generated package (FR-014). Defaults to "oauth". */
+  authStrategy?: string;
+  /** Default CDP endpoint recorded for the session-reuse strategy. */
+  cdpUrl?: string;
   /** Directory holding the extraction run store; defaults to the target's default out dir. */
   sourceDir?: string;
 }
@@ -70,13 +74,7 @@ export async function generateCommand(rootUrl: string, opts: GenerateOptions): P
   };
   validateContract("package-manifest", manifest);
 
-  const oauthConfig: OAuthConfig = {
-    authorizationEndpoint: "https://REPLACE-ME.example/oauth/authorize",
-    tokenEndpoint: "https://REPLACE-ME.example/oauth/token",
-    clientId: "REPLACE-ME",
-    redirectMode: "loopback",
-    scopes: [],
-  };
+  const oauthConfig: OAuthConfig = buildAuthConfig(opts, tools);
   validateContract("oauth-config", oauthConfig);
 
   const outDir = opts.out ?? path.join(sourceDir, `package-${lang}`);
@@ -110,6 +108,47 @@ export async function generateCommand(rootUrl: string, opts: GenerateOptions): P
     );
   }
   return EXIT.SUCCESS;
+}
+
+/** Build the package's auth config for the selected strategy (FR-014). Defaults to an OAuth stub
+ * (backward compatible). For session-reuse, records the CDP endpoint and the distinct tool hosts
+ * whose cookies the runtime should attach. Never contains secrets. */
+function buildAuthConfig(
+  opts: GenerateOptions,
+  tools: import("../models/mcp-tool-definition.js").MCPToolDefinition[],
+): OAuthConfig {
+  const strategy = (opts.authStrategy as "oauth" | "session-reuse" | "api-key" | undefined) ?? "oauth";
+  if (strategy === "session-reuse") {
+    const cookieHosts = [
+      ...new Set(
+        tools
+          .map((t) => {
+            try {
+              return t.baseUrl ? new URL(t.baseUrl).host : null;
+            } catch {
+              return null;
+            }
+          })
+          .filter((h): h is string => Boolean(h)),
+      ),
+    ];
+    return {
+      strategy,
+      cdpUrl: opts.cdpUrl ?? "http://localhost:9222",
+      ...(cookieHosts.length ? { cookieHosts } : {}),
+    };
+  }
+  if (strategy === "api-key") {
+    return { strategy, headerName: "Authorization", valuePrefix: "Bearer " };
+  }
+  return {
+    strategy: "oauth",
+    authorizationEndpoint: "https://REPLACE-ME.example/oauth/authorize",
+    tokenEndpoint: "https://REPLACE-ME.example/oauth/token",
+    clientId: "REPLACE-ME",
+    redirectMode: "loopback",
+    scopes: [],
+  };
 }
 
 /** Promote functionality items that have a successfully-applied override to mapped. */

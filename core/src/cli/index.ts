@@ -79,6 +79,8 @@ export function buildProgram(): Command {
     .argument("<root-url>", "webapp entry point")
     .requiredOption("--lang <lang>", "target language: node|python|java")
     .option("--run <runId>", "generate from a specific run")
+    .option("--auth-strategy <strategy>", "runtime auth: oauth|session-reuse|api-key (default oauth)")
+    .option("--cdp-url <url>", "default Chrome DevTools endpoint recorded for the session-reuse strategy")
     .option("--include-mutating", "opt mutating tools into includedByDefault")
     .option("--source <dir>", "extraction run store directory (defaults to extract's default out dir)")
     .option("--out <dir>", "output directory")
@@ -88,6 +90,8 @@ export function buildProgram(): Command {
         generateCommand(rootUrl, {
           lang: opts.lang,
           run: opts.run,
+          authStrategy: opts.authStrategy,
+          cdpUrl: opts.cdpUrl,
           includeMutating: Boolean(opts.includeMutating),
           out: opts.out,
           sourceDir: opts.source,

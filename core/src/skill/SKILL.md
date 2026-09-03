@@ -33,15 +33,27 @@ If neither is available, `wrapper` on PATH is acceptable.
 Before running anything, gather (asking the user, or choosing a reasonable default and stating it):
 
 - **Webapp URL** — the entry point to wrap. Required.
-- **Authentication** — if the site gates APIs behind login, pick one universal mechanism:
-  - **`--cdp-url http://localhost:9222`** (preferred): Chrome already logged in; reuse that
-    browser session. Do not export cookies or tokens.
-  - **`--auth-session file.json`**: a local file of request headers (`headers`, `cookie`, or
-    `authorization`). Never paste secrets into the conversation; only pass the file path.
-- **Target language** — `node`, `python`, or `java` (FR-018). All three produce an identical tool
-  set; the choice is a deployment preference.
+- **Authentication strategy** — how the *generated server* will authenticate to the webapp's backend
+  at runtime (FR-014). Pick the one that matches the target and pass it at `generate` time via
+  `--auth-strategy`:
+  - **`session-reuse`** (preferred for cookie/gateway apps): the server reads cookies from a live,
+    logged-in Chrome over the DevTools Protocol and attaches them per request; on a 401 it re-reads
+    and can reopen the login page (FR-014a). Combine with `--cdp-url http://localhost:9222`. No
+    tokens or cookies are ever exported or stored in plaintext.
+  - **`oauth`** (default): OAuth 2.1 + PKCE (loopback for stdio, public redirect for hosted).
+  - **`api-key`**: a user-supplied key/bearer injected as a header at runtime (`WRAPPER_API_KEY`).
+  For **discovery** behind a login, the same live browser is reused via `--cdp-url` (preferred), or a
+  captured `--auth-session file.json` of request headers. Never paste secrets into the conversation.
+- **Target language** — **Node.js/TypeScript is the only supported runtime.** Python and Java exist
+  in-tree but are optional/experimental with no parity guarantee (constitution v1.3.0, Principle VI);
+  do not offer them as equivalent choices. Use `--lang node`.
 - **Tool scope** — read-only only (default, safest), or include mutating tools. This maps to whether
   you pass `--include-mutating` to `generate`.
+
+> **Multi-host targets (FR-025):** a webapp often serves its UI and its API from different hosts
+> (e.g. an SPA at `app.example.com` calling `api.example.com`). Discovery preserves each endpoint's
+> origin, and each generated tool calls the host it was observed against — you do not configure a
+> single base URL. Cookie/session auth (`session-reuse`) reads cookies for every such host.
 
 ## 2. Extract
 
@@ -83,10 +95,13 @@ Inspect the per-item `verification.succeeded` in the output. Only verified items
 ## 4. Generate
 
 ```
-wrapper generate <url> --lang <chosen> --source ./out --out ./out/package [--include-mutating]
+wrapper generate <url> --lang node --source ./out --out ./out/package \
+  [--auth-strategy session-reuse --cdp-url http://localhost:9222] [--include-mutating]
 ```
 
-Pass `--include-mutating` only if the collected tool scope said so.
+Use `--lang node` (the supported runtime). Choose `--auth-strategy` to match the target
+(`session-reuse` for cookie/gateway apps, `oauth` default, or `api-key`). Pass `--include-mutating`
+only if the collected tool scope said so.
 
 ## 5. Validate (FR-021, FR-022)
 
@@ -102,15 +117,16 @@ Read the `ValidationRun`:
   scope), re-run `generate`, then run `validate` **once** more. Do not loop indefinitely. Record what
   you tried in the `remediationAttempts` narrative you report back.
 
-`validate` never invokes a tool outside the user's chosen scope (FR-022), and exercises the OAuth
-flow plus a forced transient failure to confirm retry/logging fired.
+`validate` never invokes a tool outside the user's chosen scope (FR-022), and exercises the package's
+configured auth strategy plus a forced transient failure to confirm retry/logging fired.
 
 ## 6. Report back
 
 Tell the user either:
 
 - the path to the ready, validated package and how to `serve` it (`wrapper serve ./out/package
-  --mode stdio`), or
+  --mode stdio`; for a `session-reuse` package add `--cdp-url http://localhost:9222` so the server
+  can read the live browser session), or
 - the single unresolved issue you could not fix after one remediation cycle, with the evidence from
   the `ValidationRun`.
 

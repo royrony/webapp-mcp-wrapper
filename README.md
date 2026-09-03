@@ -1,26 +1,29 @@
 # Webapp-to-MCP Wrapper
 
-Turn any webapp into an installable, standards-compliant **MCP server** — in the language of your
-choice (Node.js/TypeScript, Python, or Java) — with no manual integration work.
+Turn any webapp into an installable, standards-compliant **MCP server** with no manual integration
+work.
 
 A shared TypeScript **core** crawls a target webapp, discovers and classifies its functionality, and
-assembles a language-neutral generation manifest (tools, OAuth config, runtime policy). At
-generation time you pick one of three peer, pre-built **runtimes** to produce the deployable server,
-so behavior is identical across languages *by construction* rather than by three implementations
-drifting apart.
+assembles a language-neutral generation manifest (tools with per-endpoint host, auth config, runtime
+policy). The **Node.js/TypeScript runtime** turns that manifest into the deployable MCP server.
+
+> **Supported runtime:** Node.js/TypeScript is the single supported generated-server runtime
+> (constitution v1.3.0, Principle VI). `runtimes/python` and `runtimes/java` exist in-tree but are
+> **optional and experimental** — no behavioral-parity guarantee, not covered by the project's
+> safety/reliability claims. See their `EXPERIMENTAL.md`.
 
 ## Architecture
 
 ```
 core/                     shared extractor + CLI + Skill orchestration (Node.js 22 / TS 5)
-  src/extractor/          crawler, api-sniffer, spec-discovery, classify, identity-key, dedupe, auth-gate
+  src/extractor/          crawler, api-sniffer (CDP), spec-discovery, classify, identity-key, dedupe, auth-gate
   src/generator/          build-manifest + ajv contract validation (contracts/ are the source of truth)
   src/report/             run-store, render-report, diff-runs
   src/cli/                extract, apply-overrides, generate, validate, serve, refresh
   src/skill/              SKILL.md (agent-driven flow) + remediation
-  src/runtime-spec/       the reliability spec every runtime must match
-runtimes/node|python|java one pre-built, JSON-driven MCP server runtime per language
-tests/cross-language/     conformance suite asserting the 3 runtimes behave identically
+  src/runtime-spec/       the reliability spec the runtime matches
+runtimes/node             the supported JSON-driven MCP server runtime (auth strategies + per-tool host dispatch)
+runtimes/python|java      optional, experimental runtimes (see EXPERIMENTAL.md; not supported)
 ```
 
 ## Install & build
@@ -29,16 +32,18 @@ tests/cross-language/     conformance suite asserting the 3 runtimes behave iden
 # Core (required)
 cd core && npm install && npm run build
 
-# Whichever runtime(s) you want to deploy in:
-cd runtimes/node   && npm install && npm run build
-cd runtimes/python && pip install -e .
-cd runtimes/java   && mvn -q package
+# Supported runtime:
+cd runtimes/node && npm install && npm run build
+
+# (optional, experimental — not supported; see runtimes/*/EXPERIMENTAL.md)
+# cd runtimes/python && pip install -e .
+# cd runtimes/java   && mvn -q package
 ```
 
-> This repo pins current stable/LTS toolchains (Node 22, Python 3.13+, Java 21). Re-verify against
-> each ecosystem's then-current stable release at implementation start (Constitution Principle VII).
+> This repo pins current stable/LTS toolchains (Node 22). Re-verify against Node's then-current
+> stable release at implementation start (Constitution Principle VII).
 > In a browser-less environment, set `WRAPPER_FORCE_HTTP_FETCHER=1` to crawl server-rendered targets
-> without Playwright's browser binary.
+> without Playwright's browser binary (note: `--cdp-url` session-reuse needs a real browser).
 
 ## CLI usage
 
@@ -49,14 +54,16 @@ wrapper extract https://app.example --out ./out [--json] [--cdp-url http://local
 # 2. (optional) Resolve ambiguous/skipped items with verified overrides
 wrapper apply-overrides https://app.example ./out/overrides.json --out ./out
 
-# 3. Generate an installable package in your chosen language
-wrapper generate https://app.example --lang node --source ./out --out ./out/package [--include-mutating]
+# 3. Generate an installable package (Node — the supported runtime)
+#    Pick the auth strategy that matches the target:
+wrapper generate https://app.example --lang node --source ./out --out ./out/package \
+  [--auth-strategy session-reuse --cdp-url http://localhost:9222] [--include-mutating]
 
-# 4. Validate the package end-to-end (invokes in-scope tools, exercises OAuth + retry)
+# 4. Validate the package end-to-end (invokes in-scope tools, exercises auth + retry)
 wrapper validate ./out/package
 
 # 5. Serve it
-wrapper serve ./out/package --mode stdio
+wrapper serve ./out/package --mode stdio [--cdp-url http://localhost:9222]   # session-reuse reads the live browser
 wrapper serve ./out/package --mode streamable-http --port 8080 --redirect-uri https://you.example/callback
 
 # Re-run after the webapp changes (flags additions/removals)
@@ -88,22 +95,31 @@ For step-by-step setup with **Claude, Cursor, Kiro, and generic MCP clients** �
 agent to a generated server and letting an agent build the server via the Skill — see
 [docs/AI-AGENT-INTEGRATION.md](docs/AI-AGENT-INTEGRATION.md).
 
-## OAuth setup
+## Authentication (pluggable) & multi-host
 
-Runtime authentication to the wrapped webapp uses **OAuth 2.1 + PKCE**:
+The generated server authenticates to the wrapped webapp at runtime using a **pluggable strategy**
+chosen at `generate` time via `--auth-strategy` (recorded in the package's `oauthConfig.json` under
+`strategy`). No secrets, tokens, or cookies ever appear in logs, the Extraction Report, or config.
 
-- **stdio / local**: a loopback `127.0.0.1` redirect; a system browser completes authorization.
-- **streamable-http / hosted**: a configured public redirect URI (`--redirect-uri`).
+- **`session-reuse`** — reuse a live, logged-in Chrome over the Chrome DevTools Protocol: the server
+  reads the target hosts' cookies and attaches them per request, re-reading (and optionally reopening
+  the login page) on a 401. Best for cookie/gateway apps that have no OAuth flow. Configure with
+  `--cdp-url http://localhost:9222` (overridable at deploy time via `WRAPPER_CDP_URL`). Nothing is
+  persisted in plaintext.
+- **`oauth`** (default) — OAuth 2.1 + PKCE: loopback `127.0.0.1` redirect for stdio, a configured
+  public `--redirect-uri` for hosted. Fill `oauthConfig.json` with your client registration
+  (`authorizationEndpoint`, `tokenEndpoint`, `clientId`, `scopes`). Tokens are stored via the OS
+  keychain locally (AES-GCM encrypted file in hosted mode).
+- **`api-key`** — a user-supplied key/bearer injected into a configured header at runtime, supplied
+  via `WRAPPER_API_KEY` (never stored in the package).
 
-Fill in `oauthConfig.json` in the generated package with your webapp's OAuth client registration
-(`authorizationEndpoint`, `tokenEndpoint`, `clientId`, `scopes`). Tokens are stored via the OS
-keychain locally (or an AES-GCM encrypted file in hosted mode) and **never** appear in logs, the
-Extraction Report, or a Validation Run. For webapps without OAuth, a documented API-key fallback is
-available (`oauthConfig.fallback.mode = "api-key"`, supplied at runtime via `WRAPPER_API_KEY`).
+**Multi-host (FR-025):** each tool records the origin it was observed against and calls that host at
+runtime — so a target whose API lives on a separate host (e.g. `api.example.com`) works without any
+single-base-URL configuration.
 
 ## Testing
 
 ```bash
-cd core && npm test                 # unit + contract + integration
-cd tests/cross-language && npm install && npm test   # cross-language parity (Principle VI)
+cd core && npm test              # unit + contract + integration
+cd runtimes/node && npm test     # supported runtime: dispatch, auth strategies, per-tool host
 ```
